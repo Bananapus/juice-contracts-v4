@@ -71,15 +71,11 @@ contract TestAccessToFunds_Local is TestBaseWorkflow {
         });
     }
 
-    // Tests that basic payout limit and surplus allowance limits work as intended.
-    function testNativeAllowance() public {
-        // Hardcode values to use.
-        uint256 _nativeCurrencyPayoutLimit = 10 * 10 ** _NATIVE_DECIMALS;
-        uint256 _nativeCurrencySurplusAllowance = 5 * 10 ** _NATIVE_DECIMALS;
+    function deployProject(uint256 _nativeCurrencyPayoutLimit, uint256 _nativeCurrencySurplusAllowance, bool _deployTwoProjects, bool _feeProjectAcceptsToken, bool _noRulesetForFeeProject) internal returns (uint256) {
+        uint256 projectId;
 
         // Package up the limits for the given terminal.
         JBFundAccessLimitGroup[] memory _fundAccessLimitGroup = new JBFundAccessLimitGroup[](1);
-        {
             // Specify a payout limit.
             JBCurrencyAmount[] memory _payoutLimits = new JBCurrencyAmount[](1);
             _payoutLimits[0] = JBCurrencyAmount({
@@ -100,9 +96,7 @@ contract TestAccessToFunds_Local is TestBaseWorkflow {
                 payoutLimits: _payoutLimits,
                 surplusAllowances: _surplusAllowances
             });
-        }
-
-        {
+        
             // Package up the ruleset configuration.
             JBRulesetConfig[] memory _rulesetConfigurations = new JBRulesetConfig[](1);
             _rulesetConfigurations[0].mustStartAtOrAfter = 0;
@@ -118,24 +112,38 @@ contract TestAccessToFunds_Local is TestBaseWorkflow {
             _terminalConfigurations[0] =
                 JBTerminalConfig({terminal: _terminal, accountingContextConfigs: _accountingContextConfigs});
 
+            if (_deployTwoProjects)
             // Create a first project to collect fees.
             _controller.launchProjectFor({
                 owner: address(420), // Random.
                 projectMetadata: "whatever",
-                rulesetConfigurations: _rulesetConfigurations,
-                terminalConfigurations: _terminalConfigurations, // Set terminals to receive fees.
+                rulesetConfigurations: _noRulesetForFeeProject ? new JBRulesetConfig[](0) : _rulesetConfigurations,
+                terminalConfigurations: _feeProjectAcceptsToken ? _terminalConfigurations : new JBTerminalConfig[](0), // Set terminals to receive fees.
                 memo: ""
             });
 
             // Create the project to test.
-            _projectId = _controller.launchProjectFor({
+            projectId = _controller.launchProjectFor({
                 owner: _projectOwner,
                 projectMetadata: "myIPFSHash",
                 rulesetConfigurations: _rulesetConfigurations,
                 terminalConfigurations: _terminalConfigurations,
                 memo: ""
             });
-        }
+        
+        return projectId;
+    }
+
+    // Tests that basic payout limit and surplus allowance limits work as intended.
+    function testNativeAllowance() public {
+        // Hardcode values to use.
+        uint256 _nativeCurrencyPayoutLimit = 10 * 10 ** _NATIVE_DECIMALS;
+        uint256 _nativeCurrencySurplusAllowance = 5 * 10 ** _NATIVE_DECIMALS;
+        bool _deployTwoProjects = true;
+        bool _feeProjectAcceptsToken = true;
+        bool _noRulesetForFeeProject = false;
+
+        _projectId = deployProject(_nativeCurrencyPayoutLimit, _nativeCurrencySurplusAllowance, _deployTwoProjects, _feeProjectAcceptsToken, _noRulesetForFeeProject);
 
         // Get a reference to the amount being paid.
         // The amount being paid is the payout limit plus two times the surplus allowance.
@@ -295,6 +303,10 @@ contract TestAccessToFunds_Local is TestBaseWorkflow {
     )
         public
     {
+        bool _deployTwoProjects = true;
+        bool _feeProjectAcceptsToken = true;
+        bool _noRulesetForFeeProject = false;
+
         // Make sure the amount of native tokens to pay is bounded.
         _nativePayAmount = bound(_nativePayAmount, 0, 1_000_000 * 10 ** _NATIVE_DECIMALS);
 
@@ -305,66 +317,8 @@ contract TestAccessToFunds_Local is TestBaseWorkflow {
                     && _nativeCurrencySurplusAllowance + _nativeCurrencyPayoutLimit >= _nativeCurrencyPayoutLimit
             );
         }
-
-        // Package up the limits for the given terminal.
-        JBFundAccessLimitGroup[] memory _fundAccessLimitGroup = new JBFundAccessLimitGroup[](1);
-        {
-            // Specify a payout limit.
-            JBCurrencyAmount[] memory _payoutLimits = new JBCurrencyAmount[](1);
-            _payoutLimits[0] = JBCurrencyAmount({
-                amount: _nativeCurrencyPayoutLimit,
-                currency: uint32(uint160(JBConstants.NATIVE_TOKEN))
-            });
-
-            // Specify a surplus allowance.
-            JBCurrencyAmount[] memory _surplusAllowances = new JBCurrencyAmount[](1);
-            _surplusAllowances[0] = JBCurrencyAmount({
-                amount: _nativeCurrencySurplusAllowance,
-                currency: uint32(uint160(JBConstants.NATIVE_TOKEN))
-            });
-
-            _fundAccessLimitGroup[0] = JBFundAccessLimitGroup({
-                terminal: address(_terminal),
-                token: JBConstants.NATIVE_TOKEN,
-                payoutLimits: _payoutLimits,
-                surplusAllowances: _surplusAllowances
-            });
-        }
-
-        {
-            // Package up the ruleset configuration.
-            JBRulesetConfig[] memory _rulesetConfigurations = new JBRulesetConfig[](1);
-            _rulesetConfigurations[0].mustStartAtOrAfter = 0;
-            _rulesetConfigurations[0].data = _data;
-            _rulesetConfigurations[0].metadata = _metadata;
-            _rulesetConfigurations[0].splitGroups = new JBSplitGroup[](0);
-            _rulesetConfigurations[0].fundAccessLimitGroups = _fundAccessLimitGroup;
-
-            JBTerminalConfig[] memory _terminalConfigurations = new JBTerminalConfig[](1);
-            JBAccountingContextConfig[] memory _accountingContextConfigs = new JBAccountingContextConfig[](1);
-            _accountingContextConfigs[0] =
-                JBAccountingContextConfig({token: JBConstants.NATIVE_TOKEN, standard: JBTokenStandards.NATIVE});
-            _terminalConfigurations[0] =
-                JBTerminalConfig({terminal: _terminal, accountingContextConfigs: _accountingContextConfigs});
-
-            // Create a project to collect fees.
-            _controller.launchProjectFor({
-                owner: address(420), // Random.
-                projectMetadata: "whatever",
-                rulesetConfigurations: _rulesetConfigurations, // Use the same ruleset configurations.
-                terminalConfigurations: _terminalConfigurations, // set the terminals where fees will be received
-                memo: ""
-            });
-
-            // Create the project to test.
-            _projectId = _controller.launchProjectFor({
-                owner: _projectOwner,
-                projectMetadata: "myIPFSHash",
-                rulesetConfigurations: _rulesetConfigurations,
-                terminalConfigurations: _terminalConfigurations,
-                memo: ""
-            });
-        }
+        
+        _projectId = deployProject(_nativeCurrencyPayoutLimit, _nativeCurrencySurplusAllowance, _deployTwoProjects, _feeProjectAcceptsToken, _noRulesetForFeeProject);
 
         // Make a payment to the test project to give it a starting balance. Send the tokens to the `_beneficiary`.
         _terminal.pay{value: _nativePayAmount}({
@@ -559,6 +513,10 @@ contract TestAccessToFunds_Local is TestBaseWorkflow {
     )
         public
     {
+        bool _deployTwoProjects = true;
+        bool _feeProjectAcceptsToken = true;
+        bool _noRulesetForFeeProject = true;
+
         // Make sure the amount of native tokens to pay is bounded.
         _nativePayAmount = bound(_nativePayAmount, 0, 1_000_000 * 10 ** _NATIVE_DECIMALS);
 
@@ -570,68 +528,7 @@ contract TestAccessToFunds_Local is TestBaseWorkflow {
             );
         }
 
-        // Package up the limits for the given terminal.
-        JBFundAccessLimitGroup[] memory _fundAccessLimitGroup = new JBFundAccessLimitGroup[](1);
-        {
-            // Specify a payout limit.
-            JBCurrencyAmount[] memory _payoutLimits = new JBCurrencyAmount[](1);
-            _payoutLimits[0] = JBCurrencyAmount({
-                amount: _nativeCurrencyPayoutLimit,
-                currency: uint32(uint160(JBConstants.NATIVE_TOKEN))
-            });
-
-            // Specify a surplus allowance.
-            JBCurrencyAmount[] memory _surplusAllowances = new JBCurrencyAmount[](1);
-            _surplusAllowances[0] = JBCurrencyAmount({
-                amount: _nativeCurrencySurplusAllowance,
-                currency: uint32(uint160(JBConstants.NATIVE_TOKEN))
-            });
-
-            _fundAccessLimitGroup[0] = JBFundAccessLimitGroup({
-                terminal: address(_terminal),
-                token: JBConstants.NATIVE_TOKEN,
-                payoutLimits: _payoutLimits,
-                surplusAllowances: _surplusAllowances
-            });
-        }
-
-        {
-            JBTerminalConfig[] memory _terminalConfigurations = new JBTerminalConfig[](1);
-            JBAccountingContextConfig[] memory _accountingContextConfigs = new JBAccountingContextConfig[](1);
-            _accountingContextConfigs[0] =
-                JBAccountingContextConfig({token: JBConstants.NATIVE_TOKEN, standard: JBTokenStandards.NATIVE});
-
-            _terminalConfigurations[0] =
-                JBTerminalConfig({terminal: _terminal, accountingContextConfigs: _accountingContextConfigs});
-
-            // Create a first project to collect fees.
-            _controller.launchProjectFor({
-                owner: address(420), // Random.
-                projectMetadata: "whatever",
-                rulesetConfigurations: new JBRulesetConfig[](0), // No ruleset config will force revert when paid.
-                // Set the fee collecting terminal's native token accounting context if the test calls for doing so.
-                terminalConfigurations: _feeProjectAcceptsToken ? _terminalConfigurations : new JBTerminalConfig[](0), // Set
-                    // terminals to receive fees.
-                memo: ""
-            });
-
-            // Package up the ruleset configuration.
-            JBRulesetConfig[] memory _rulesetConfigurations = new JBRulesetConfig[](1);
-            _rulesetConfigurations[0].mustStartAtOrAfter = 0;
-            _rulesetConfigurations[0].data = _data;
-            _rulesetConfigurations[0].metadata = _metadata;
-            _rulesetConfigurations[0].splitGroups = new JBSplitGroup[](0);
-            _rulesetConfigurations[0].fundAccessLimitGroups = _fundAccessLimitGroup;
-
-            // Create the project to test.
-            _projectId = _controller.launchProjectFor({
-                owner: _projectOwner,
-                projectMetadata: "myIPFSHash",
-                rulesetConfigurations: _rulesetConfigurations,
-                terminalConfigurations: _terminalConfigurations,
-                memo: ""
-            });
-        }
+        _projectId = deployProject(_nativeCurrencyPayoutLimit, _nativeCurrencySurplusAllowance, _deployTwoProjects, _feeProjectAcceptsToken, _noRulesetForFeeProject);
 
         // Make a payment to the project to give it a starting balance. Send the tokens to the `_beneficiary`.
         _terminal.pay{value: _nativePayAmount}({
@@ -806,6 +703,10 @@ contract TestAccessToFunds_Local is TestBaseWorkflow {
     )
         public
     {
+        bool _deployTwoProjects = false;
+        bool _feeProjectAcceptsToken = false;
+        bool _noRulesetForFeeProject = false;
+
         // Make sure the amount of native tokens to pay is bounded.
         _nativePayAmount = bound(_nativePayAmount, 0, 1_000_000 * 10 ** _NATIVE_DECIMALS);
 
@@ -817,57 +718,7 @@ contract TestAccessToFunds_Local is TestBaseWorkflow {
             );
         }
 
-        // Package up the limits for the given terminal.
-        JBFundAccessLimitGroup[] memory _fundAccessLimitGroup = new JBFundAccessLimitGroup[](1);
-        {
-            // Specify a payout limit.
-            JBCurrencyAmount[] memory _payoutLimits = new JBCurrencyAmount[](1);
-            _payoutLimits[0] = JBCurrencyAmount({
-                amount: _nativeCurrencyPayoutLimit,
-                currency: uint32(uint160(JBConstants.NATIVE_TOKEN))
-            });
-
-            // Specify a surplus allowance.
-            JBCurrencyAmount[] memory _surplusAllowances = new JBCurrencyAmount[](1);
-            _surplusAllowances[0] = JBCurrencyAmount({
-                amount: _nativeCurrencySurplusAllowance,
-                currency: uint32(uint160(JBConstants.NATIVE_TOKEN))
-            });
-
-            _fundAccessLimitGroup[0] = JBFundAccessLimitGroup({
-                terminal: address(_terminal),
-                token: JBConstants.NATIVE_TOKEN,
-                payoutLimits: _payoutLimits,
-                surplusAllowances: _surplusAllowances
-            });
-        }
-
-        {
-            // Package up the ruleset configuration.
-            JBRulesetConfig[] memory _rulesetConfigurations = new JBRulesetConfig[](1);
-            _rulesetConfigurations[0].mustStartAtOrAfter = 0;
-            _rulesetConfigurations[0].data = _data;
-            _rulesetConfigurations[0].metadata = _metadata;
-            _rulesetConfigurations[0].splitGroups = new JBSplitGroup[](0);
-            _rulesetConfigurations[0].fundAccessLimitGroups = _fundAccessLimitGroup;
-
-            JBTerminalConfig[] memory _terminalConfigurations = new JBTerminalConfig[](1);
-            JBAccountingContextConfig[] memory _accountingContextConfigs = new JBAccountingContextConfig[](1);
-            _accountingContextConfigs[0] =
-                JBAccountingContextConfig({token: JBConstants.NATIVE_TOKEN, standard: JBTokenStandards.NATIVE});
-
-            _terminalConfigurations[0] =
-                JBTerminalConfig({terminal: _terminal, accountingContextConfigs: _accountingContextConfigs});
-
-            // Create the project to test.
-            _projectId = _controller.launchProjectFor({
-                owner: _projectOwner,
-                projectMetadata: "myIPFSHash",
-                rulesetConfigurations: _rulesetConfigurations,
-                terminalConfigurations: _terminalConfigurations,
-                memo: ""
-            });
-        }
+        _projectId = deployProject(_nativeCurrencyPayoutLimit, _nativeCurrencySurplusAllowance, _deployTwoProjects, _feeProjectAcceptsToken, _noRulesetForFeeProject);
 
         // Make a payment to the project to give it a starting balance. Send the tokens to the `_beneficiary`.
         _terminal.pay{value: _nativePayAmount}({
