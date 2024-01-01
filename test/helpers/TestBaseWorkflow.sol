@@ -81,6 +81,7 @@ import {JBPermissionIds} from "src/libraries/JBPermissionIds.sol";
 import {IPermit2, IAllowanceTransfer} from "lib/permit2/src/interfaces/IPermit2.sol";
 import {DeployPermit2} from "lib/permit2/test/utils/DeployPermit2.sol";
 
+import {JBTest} from "./JBTest.sol";
 import {MetadataResolverHelper} from "./MetadataResolverHelper.sol";
 
 import {MockERC20} from "./../mock/MockERC20.sol";
