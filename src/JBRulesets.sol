@@ -120,6 +120,54 @@ contract JBRulesets is JBControlled, IJBRulesets {
         });
     }
 
+    /// @notice Get all the currently queued rulesets for a project.
+    /// @param projectId The ID of the project to get the queued rulesets of.
+    /// @return queuedRulesets The queued rulesets as an array of `JBRuleset` structs.
+    function queuedRulesetsOf(uint256 projectId) external view override returns (JBRuleset[] memory queuedRulesets) {
+        // Get the latest ruleset's ID.
+        uint256 latestId = latestRulesetIdOf[projectId];
+
+        // Keep a reference to the number of queued rulesets.
+        uint256 count = 0;
+
+        // Keep a reference to the latest ruleset.
+        JBRuleset memory ruleset = _getStructFor(projectId, latestId);
+
+        // First, count the number of queued rulesets (backwards from the latest ruleset).
+        while (ruleset.id != 0 && ruleset.start > block.timestamp) {
+            // Increment the counter.
+            count++;
+
+            // Iterate to the ruleset it was based on.
+            ruleset = _getStructFor(projectId, ruleset.basedOnId);
+        }
+
+        // Keep a reference to the array of rulesets that'll be populated.
+        queuedRulesets = new JBRuleset[](count);
+
+        // Return empty array if nothing is queued.
+        if (count == 0) {
+            return queuedRulesets;
+        }
+
+        // Reset the ruleset being iterated on to the latest ruleset.
+        ruleset = _getStructFor(projectId, latestId);
+
+        // Set counter.
+        uint256 i = count;
+
+        // Populate the array of queued rulesets.
+        while (i > 0) {
+            i--;
+
+            // Add the ruleset to the array to be returned.
+            queuedRulesets[i] = ruleset;
+
+            // Get the ruleset it was based on if needed.
+            if (i != 0) ruleset = _getStructFor(projectId, ruleset.basedOnId);
+        }
+    }
+
     /// @notice The ruleset that's up next for a project.
     /// @dev If an upcoming ruleset is not found for the project, returns an empty ruleset with all properties set to 0.
     /// @param projectId The ID of the project to get the upcoming ruleset of.

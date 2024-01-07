@@ -152,7 +152,7 @@ contract TestPayHooks_Local is TestBaseWorkflow {
 
             // Expect an event to be emitted for every hook.
             vm.expectEmit(true, true, true, true);
-            emit HookPostRecordPay(IJBPayHook(_hookAddress), _postRecordPayContext, _payHookAmounts[i], _payer);
+            emit HookAfterRecordPay(IJBPayHook(_hookAddress), _postRecordPayContext, _payHookAmounts[i], _payer);
         }
 
         vm.mockCall(
@@ -176,7 +176,7 @@ contract TestPayHooks_Local is TestBaseWorkflow {
         });
     }
 
-    event HookPostRecordPay(
+    event HookAfterRecordPay(
         IJBPayHook indexed hook, JBAfterPayRecordedContext context, uint256 specificationAmount, address caller
     );
 }

@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {IERC165} from "lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol";
 import {JBApprovalStatus} from "./../enums/JBApprovalStatus.sol";
 import {JBRuleset} from "./../structs/JBRuleset.sol";
+import {JBRulesetWithMetadata} from "./../structs/JBRulesetWithMetadata.sol";
 import {JBRulesetConfig} from "./../structs/JBRulesetConfig.sol";
 import {JBRulesetMetadata} from "./../structs/JBRulesetMetadata.sol";
 import {JBTerminalConfig} from "./../structs/JBTerminalConfig.sol";
@@ -95,6 +96,11 @@ interface IJBController is IERC165, IJBProjectMetadataRegistry, IJBDirectoryAcce
         external
         view
         returns (JBRuleset memory, JBRulesetMetadata memory metadata, JBApprovalStatus);
+
+    function queuedRulesetsOf(uint256 projectId)
+        external
+        view
+        returns (JBRulesetWithMetadata[] memory queuedRulesets);
 
     function currentRulesetOf(uint256 projectId)
         external

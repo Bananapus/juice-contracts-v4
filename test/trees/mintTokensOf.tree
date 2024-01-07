@@ -1,0 +1,12 @@
+TestMintTokensOf
+├── when no ruleset is active
+│   └── it should be able to mint
+├── when minting is disabled in the funding cycle ruleset
+│   └── it should revert
+└── when minting is enabled in the funding cycle ruleset
+    ├── given that there are tokens available to mint
+    │   └── it should be possible to mint
+    ├── given that a data source is configured
+    │   └── it should be able to mint
+    └── given that a data source has permissioned another contract to mint
+        └── it should be able to mint

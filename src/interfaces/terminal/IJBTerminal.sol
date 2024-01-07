@@ -34,7 +34,7 @@ interface IJBTerminal is IERC165 {
         address caller
     );
 
-    event HookPostRecordPay(
+    event HookAfterRecordPay(
         IJBPayHook indexed hook, JBAfterPayRecordedContext context, uint256 specificationAmount, address caller
     );
 

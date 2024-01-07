@@ -26,7 +26,7 @@ contract JBFundAccessLimits is JBControlled, ERC165, IJBFundAccessLimits {
     // --------------------- private stored properties ------------------- //
     //*********************************************************************//
 
-    /// @notice A list of packed payout limits for a given project, ruleset, terminal, and token.
+    /// @notice An array of packed payout limits for a given project, ruleset, terminal, and token.
     /// @dev bits 0-223: The maximum amount (in a specific currency) of the terminal's `token`s that the project can pay
     /// out during the applicable ruleset.
     /// @dev bits 224-255: The currency that the payout limit is denominated in. If this currency is different from the
@@ -40,7 +40,7 @@ contract JBFundAccessLimits is JBControlled, ERC165, IJBFundAccessLimits {
             => mapping(uint256 rulesetId => mapping(address terminal => mapping(address token => uint256[])))
     ) private _packedPayoutLimitsDataOf;
 
-    /// @notice A list of packed surplus allowances for a given project, ruleset, terminal, and token.
+    /// @notice An array of packed surplus allowances for a given project, ruleset, terminal, and token.
     /// @dev bits 0-223: The maximum amount (in a specific currency) of the terminal's `token`s that the project can
     /// access from its surplus during the applicable ruleset.
     /// @dev bits 224-255: The currency that the surplus allowance is denominated in. If this currency is different from

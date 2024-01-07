@@ -75,6 +75,57 @@ contract TestRulesetQueuing_Local is TestBaseWorkflow {
         return projectId;
     }
 
+    function launchProjectForTestWithThreeRulesets() public returns (uint256) {
+        // Package up ruleset configuration.
+        JBRulesetConfig[] memory _rulesetConfig = new JBRulesetConfig[](3);
+
+        // first ruleset
+        _rulesetConfig[0].mustStartAtOrAfter = 0;
+        _rulesetConfig[0].duration = 1 days;
+        _rulesetConfig[0].weight = _weight;
+        _rulesetConfig[0].decayRate = 0;
+        _rulesetConfig[0].approvalHook = IJBRulesetApprovalHook(address(0));
+        _rulesetConfig[0].metadata = _metadata;
+        _rulesetConfig[0].splitGroups = new JBSplitGroup[](0);
+        _rulesetConfig[0].fundAccessLimitGroups = new JBFundAccessLimitGroup[](0);
+
+        // second
+        _rulesetConfig[1].mustStartAtOrAfter = block.timestamp + 1 days;
+        _rulesetConfig[1].duration = 1 days;
+        _rulesetConfig[1].weight = _weight + 100;
+        _rulesetConfig[1].decayRate = 0;
+        _rulesetConfig[1].approvalHook = IJBRulesetApprovalHook(address(0));
+        _rulesetConfig[1].metadata = _metadata;
+        _rulesetConfig[1].splitGroups = new JBSplitGroup[](0);
+        _rulesetConfig[1].fundAccessLimitGroups = new JBFundAccessLimitGroup[](0);
+
+        // third
+        _rulesetConfig[2].mustStartAtOrAfter = block.timestamp + 2 days;
+        _rulesetConfig[2].duration = 1 days;
+        _rulesetConfig[2].weight = _weight + 200;
+        _rulesetConfig[2].decayRate = 0;
+        _rulesetConfig[2].approvalHook = IJBRulesetApprovalHook(address(0));
+        _rulesetConfig[2].metadata = _metadata;
+        _rulesetConfig[2].splitGroups = new JBSplitGroup[](0);
+        _rulesetConfig[2].fundAccessLimitGroups = new JBFundAccessLimitGroup[](0);
+
+        // Package up terminal configuration.
+        JBTerminalConfig[] memory _terminalConfigurations = new JBTerminalConfig[](1);
+        address[] memory _tokensToAccept = new address[](1);
+        _tokensToAccept[0] = JBConstants.NATIVE_TOKEN;
+        _terminalConfigurations[0] = JBTerminalConfig({terminal: _terminal, tokensToAccept: _tokensToAccept});
+
+        uint256 projectId = _controller.launchProjectFor({
+            owner: address(multisig()),
+            projectMetadata: "myIPFSHash",
+            rulesetConfigurations: _rulesetConfig,
+            terminalConfigurations: _terminalConfigurations,
+            memo: ""
+        });
+
+        return projectId;
+    }
+
     function testReconfigureProject() public {
         // Package a ruleset configuration.
         JBRulesetConfig[] memory _rulesetConfig = new JBRulesetConfig[](1);
@@ -253,8 +304,12 @@ contract TestRulesetQueuing_Local is TestBaseWorkflow {
             currentRuleset = jbRulesets().currentOf(projectId);
             upcomingRuleset = jbRulesets().upcomingRulesetOf(projectId);
 
+            // Get a list of queued rulesets
+            JBRuleset[] memory queuedRulesetsOf = jbRulesets().queuedRulesetsOf(projectId);
+
             // Make sure the upcoming ruleset is the ruleset currently under the approval hook.
             assertEq(upcomingRuleset.weight, _config[0].weight);
+            assertEq(queuedRulesetsOf[0].weight, _config[0].weight);
 
             // If the full deadline duration included in the ruleset.
             if (
@@ -477,6 +532,12 @@ contract TestRulesetQueuing_Local is TestBaseWorkflow {
         assertEq(_queued.id, _initialRulesetId + 1);
         assertEq(_queued.weight, _weightFirstQueued);
 
+        // Get a list of queued rulesets
+        JBRuleset[] memory queuedRulesets = jbRulesets().queuedRulesetsOf(projectId);
+
+        // Ensure queuedRulesetsOf is accurate
+        assertEq(queuedRulesets[0].weight, _weightFirstQueued);
+
         // Package up another config.
         JBRulesetConfig[] memory _secondQueued = new JBRulesetConfig[](1);
         _secondQueued[0].mustStartAtOrAfter = block.timestamp + 9 days;
@@ -501,6 +562,12 @@ contract TestRulesetQueuing_Local is TestBaseWorkflow {
         assertEq(_requeued.id, _initialRulesetId);
         assertEq(_requeued.weight, _weightInitial);
 
+        // Get a list of queued rulesets
+        JBRuleset[] memory queuedRulesets2 = jbRulesets().queuedRulesetsOf(projectId);
+
+        // Ensure queuedRulesetsOf is accurate
+        assertEq(queuedRulesets2[0].weight, _weightSecondQueued);
+
         // Warp to when the initial ruleset rolls over and again becomes the current.
         vm.warp(block.timestamp + _RULESET_DURATION);
 
@@ -515,6 +582,12 @@ contract TestRulesetQueuing_Local is TestBaseWorkflow {
         assertEq(_requeued2.cycleNumber, 3);
         assertEq(_requeued2.id, _initialRulesetId + 2);
         assertEq(_requeued2.weight, _weightSecondQueued);
+
+        // Get queued rulesets
+        JBRuleset[] memory queuedRulesets3 = jbRulesets().queuedRulesetsOf(projectId);
+
+        // Ensure queuedRulesetsOf is accurate
+        assertEq(queuedRulesets3[0].weight, _weightSecondQueued);
     }
 
     function testSingleBlockOverwriteQueued() public {
@@ -620,5 +693,34 @@ contract TestRulesetQueuing_Local is TestBaseWorkflow {
         else if (block.timestamp + _duration > _start) {
             assertEq(uint256(_currentStatus), uint256(JBApprovalStatus.Approved));
         }
+    }
+
+    function testRulesetQueueingViewAccuracy() public {
+        // setup: deploy project and queue 2 rulesets atop the initial ruleset
+        uint256 id = launchProjectForTestWithThreeRulesets();
+
+        // Get a list of queued rulesets
+        JBRuleset[] memory queuedRulesetsOf = jbRulesets().queuedRulesetsOf(id);
+
+        // check: two queued
+        assertEq(queuedRulesetsOf.length, 2);
+
+        // check: queued with nearest start time
+        assertEq(queuedRulesetsOf[0].weight, _weight + 100);
+
+        // check: queued with furthest start time
+        assertEq(queuedRulesetsOf[1].weight, _weight + 200);
+
+        // get the current ruleset
+        JBRuleset memory currentRuleset = jbRulesets().currentOf(id);
+
+        // check: current should be the initial ruleset
+        assertEq(currentRuleset.weight, _weight);
+
+        // get upcoming ruleset
+        JBRuleset memory upcomingRuleset = jbRulesets().upcomingRulesetOf(id);
+
+        // check: upcoming ruleset should be 2nd queued
+        assertEq(upcomingRuleset.weight, _weight + 100);
     }
 }

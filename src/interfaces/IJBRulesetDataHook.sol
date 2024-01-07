@@ -7,11 +7,18 @@ import {JBBeforePayRecordedContext} from "./../structs/JBBeforePayRecordedContex
 import {JBBeforeRedeemRecordedContext} from "./../structs/JBBeforeRedeemRecordedContext.sol";
 import {JBRedeemHookSpecification} from "./../structs/JBRedeemHookSpecification.sol";
 
-/// @notice An extra layer of logic which can be used to provide pay/redeem transactions with a custom weight, a custom
-/// memo and/or a pay/redeem hook(s).
-/// @dev If included in the current ruleset, the `IJBRulesetDataHook` is called by `JBPayoutRedemptionPaymentTerminal`s
-/// upon payments and redemptions.
+/// @notice Data hooks can extend a terminal's core pay/redeem functionality by overriding the weight or memo. They can
+/// also specify pay/redeem hooks for the terminal to fulfill, or allow addresses to mint a project's tokens on-demand.
+/// @dev If a project's ruleset has `useDataHookForPay` or `useDataHookForRedeem` enabled, its `dataHook` is called by
+/// the terminal upon payments/redemptions (respectively).
 interface IJBRulesetDataHook is IERC165 {
+    /// @notice A flag indicating whether an address has permission to mint a project's tokens on-demand.
+    /// @dev A project's data hook can allow any address to mint its tokens.
+    /// @param projectId The ID of the project whose token can be minted.
+    /// @param addr The address to check the token minting permission of.
+    /// @return flag A flag indicating whether the address has permission to mint the project's tokens on-demand.
+    function hasMintPermissionFor(uint256 projectId, address addr) external view returns (bool flag);
+
     /// @notice The data calculated before a payment is recorded in the terminal store. This data is provided to the
     /// terminal's `pay(...)` transaction.
     /// @param context The context passed to this data hook by the `pay(...)` function as a `JBBeforePayRecordedContext`

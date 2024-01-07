@@ -1413,7 +1413,7 @@ contract JBMultiTerminal is JBPermissioned, ERC2771Context, IJBMultiTerminal {
             // Fulfill the specification.
             specification.hook.afterPayRecordedWith{value: payValue}(context);
 
-            emit HookPostRecordPay(specification.hook, context, specification.amount, _msgSender());
+            emit HookAfterRecordPay(specification.hook, context, specification.amount, _msgSender());
         }
     }
 
@@ -1500,7 +1500,7 @@ contract JBMultiTerminal is JBPermissioned, ERC2771Context, IJBMultiTerminal {
             // Fulfill the specification.
             specification.hook.afterRedeemRecordedWith{value: payValue}(context);
 
-            emit HookPostRecordRedeem(
+            emit HookAfterRecordRedeem(
                 specification.hook, context, specification.amount, specificationAmountFee, _msgSender()
             );
         }

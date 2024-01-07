@@ -30,6 +30,8 @@ interface IJBRulesets is IJBControlled {
         view
         returns (JBRuleset memory ruleset, JBApprovalStatus approvalStatus);
 
+    function queuedRulesetsOf(uint256 projectId) external view returns (JBRuleset[] memory queuedRulesets);
+
     function upcomingRulesetOf(uint256 projectId) external view returns (JBRuleset memory ruleset);
 
     function currentOf(uint256 projectId) external view returns (JBRuleset memory ruleset);

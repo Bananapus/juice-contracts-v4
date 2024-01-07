@@ -19,7 +19,7 @@ interface IJBRedeemTerminal is IJBTerminal {
         address caller
     );
 
-    event HookPostRecordRedeem(
+    event HookAfterRecordRedeem(
         IJBRedeemHook indexed hook,
         JBAfterRedeemRecordedContext context,
         uint256 specificationAmount,
