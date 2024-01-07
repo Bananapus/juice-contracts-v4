@@ -22,4 +22,7 @@ library JBPermissionIds {
     uint256 public constant SET_SPLITS = 18;
     uint256 public constant ADD_PRICE_FEED = 19;
     uint256 public constant SET_ACCOUNTING_CONTEXT = 20;
+    // -- NEW PERMISSIONS --
+    uint256 public constant MODIFY_DEFAULT_POOL = 21;
+    uint256 public constant MODIFY_TWAP_PARAMS = 22;
 }
